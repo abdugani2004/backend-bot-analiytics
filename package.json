@@ -1,0 +1,33 @@
+{
+  "name": "telegram-bot-analytics-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready serverless backend for Telegram Bot Analytics",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "if (Test-Path dist) { Remove-Item -Recurse -Force dist }",
+    "dev": "serverless offline start --stage local",
+    "deploy": "npm run build && serverless deploy",
+    "lint": "tsc --noEmit -p tsconfig.json",
+    "seed": "tsx scripts/run-sql.ts sql/schema.sql sql/seed.sql",
+    "db:schema": "tsx scripts/run-sql.ts sql/schema.sql"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@types/aws-lambda": "^8.10.145",
+    "aws-lambda": "^1.0.7",
+    "dotenv": "^17.2.3",
+    "pg": "^8.16.0",
+    "serverless-http": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/pg": "^8.15.5",
+    "serverless": "^4.18.2",
+    "serverless-offline": "^14.4.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  }
+}

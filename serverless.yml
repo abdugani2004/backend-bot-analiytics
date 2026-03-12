@@ -1,0 +1,132 @@
+service: telegram-bot-analytics-backend
+frameworkVersion: "4"
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${env:AWS_REGION, 'us-east-1'}
+  stage: ${opt:stage, 'dev'}
+  timeout: 15
+  memorySize: 512
+  logRetentionInDays: 14
+  environment:
+    NODE_ENV: ${env:NODE_ENV, 'production'}
+    APP_NAME: ${env:APP_NAME, 'telegram-bot-analytics-backend'}
+    LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
+    DATABASE_URL: ${env:DATABASE_URL}
+    TOKEN_HASH_SECRET: ${env:TOKEN_HASH_SECRET}
+    CORS_ORIGIN: ${env:CORS_ORIGIN, '*'}
+    DEFAULT_TIMEZONE: ${env:DEFAULT_TIMEZONE, 'UTC'}
+    HEALTH_DEGRADED_UPTIME_PCT: ${env:HEALTH_DEGRADED_UPTIME_PCT, '99'}
+    HEALTH_DEGRADED_ERROR_RATE: ${env:HEALTH_DEGRADED_ERROR_RATE, '5'}
+  httpApi:
+    cors:
+      allowedOrigins:
+        - ${env:CORS_ORIGIN, '*'}
+      allowedHeaders:
+        - Content-Type
+        - Authorization
+        - X-Request-Id
+      allowedMethods:
+        - GET
+        - POST
+        - OPTIONS
+
+plugins:
+  - serverless-offline
+
+package:
+  individually: true
+  patterns:
+    - dist/**
+    - package.json
+    - sql/**
+    - '!src/**'
+    - '!scripts/**'
+    - '!node_modules/.cache/**'
+
+functions:
+  health:
+    handler: dist/src/functions/health.handler
+    events:
+      - httpApi:
+          path: /health
+          method: GET
+  botConnect:
+    handler: dist/src/functions/botConnect.handler
+    events:
+      - httpApi:
+          path: /bots/connect
+          method: POST
+  botVerify:
+    handler: dist/src/functions/botVerify.handler
+    events:
+      - httpApi:
+          path: /bots/verify
+          method: POST
+  botEnableTracking:
+    handler: dist/src/functions/botEnableTracking.handler
+    events:
+      - httpApi:
+          path: /bots/enable-tracking
+          method: POST
+  telegramWebhook:
+    handler: dist/src/functions/telegramWebhook.handler
+    events:
+      - httpApi:
+          path: /webhooks/telegram/{botId}
+          method: POST
+  statsDashboard:
+    handler: dist/src/functions/statsDashboard.handler
+    events:
+      - httpApi:
+          path: /stats/dashboard
+          method: GET
+  statsOverview:
+    handler: dist/src/functions/statsOverview.handler
+    events:
+      - httpApi:
+          path: /stats/overview
+          method: GET
+  statsUsers:
+    handler: dist/src/functions/statsUsers.handler
+    events:
+      - httpApi:
+          path: /stats/users
+          method: GET
+  statsGrowth:
+    handler: dist/src/functions/statsGrowth.handler
+    events:
+      - httpApi:
+          path: /stats/growth
+          method: GET
+  statsRevenue:
+    handler: dist/src/functions/statsRevenue.handler
+    events:
+      - httpApi:
+          path: /stats/revenue
+          method: GET
+  statsMessages:
+    handler: dist/src/functions/statsMessages.handler
+    events:
+      - httpApi:
+          path: /stats/messages
+          method: GET
+  eventMessage:
+    handler: dist/src/functions/eventMessage.handler
+    events:
+      - httpApi:
+          path: /events/message
+          method: POST
+  eventUserJoined:
+    handler: dist/src/functions/eventUserJoined.handler
+    events:
+      - httpApi:
+          path: /events/user-joined
+          method: POST
+  eventPayment:
+    handler: dist/src/functions/eventPayment.handler
+    events:
+      - httpApi:
+          path: /events/payment
+          method: POST
