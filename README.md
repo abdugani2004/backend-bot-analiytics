@@ -37,6 +37,13 @@ All error responses:
 
 Available endpoints:
 
+- `POST /auth/register`
+- `GET /billing/pricing`
+- `POST /billing/checkout`
+- `GET /billing/subscription`
+- `GET /account/me`
+- `GET /account/bots`
+- `POST /account/plan`
 - `POST /bots/connect`
 - `POST /bots/verify`
 - `POST /bots/enable-tracking`
@@ -50,7 +57,15 @@ Available endpoints:
 - `POST /events/message`
 - `POST /events/user-joined`
 - `POST /events/payment`
+- `POST /webhooks/billing`
 - `POST /webhooks/telegram/{botId}`
+
+All endpoints except `GET /health`, `GET /billing/pricing`, `POST /webhooks/billing`, and `POST /webhooks/telegram/{botId}` require `x-api-key: <owner-api-key>` or `Authorization: Bearer <owner-api-key>`.
+
+Default plans:
+
+- `starter`: up to 2 bots, 5,000 monthly events
+- `growth`: up to 25 bots, 250,000 monthly events
 
 ## Bot identity handling
 
@@ -75,6 +90,8 @@ Required env vars for live webhook ingestion:
 - `TOKEN_ENCRYPTION_SECRET`
 - `TELEGRAM_WEBHOOK_BASE_URL`
 - `TELEGRAM_WEBHOOK_SECRET`
+- `API_KEY_HASH_SECRET`
+- `BILLING_WEBHOOK_SECRET`
 
 ## Project structure
 
@@ -111,6 +128,11 @@ docker compose up -d
 npm run seed
 ```
 
+Seeded local owner credentials:
+
+- email: `demo@example.com`
+- api key: `demo-owner-api-key`
+
 5. Build the TypeScript output:
 
 ```bash
@@ -130,7 +152,68 @@ Default local frontend origin is `http://localhost:5173`.
 Dashboard:
 
 ```bash
-curl "http://localhost:3000/stats/dashboard?botType=username&botValue=sample_analytics_bot"
+curl "http://localhost:3000/stats/dashboard?botType=username&botValue=sample_analytics_bot" \
+  -H "x-api-key: demo-owner-api-key"
+```
+
+Account summary:
+
+```bash
+curl "http://localhost:3000/account/me" \
+  -H "x-api-key: demo-owner-api-key"
+```
+
+Switch demo account to growth plan:
+
+```bash
+curl -X POST "http://localhost:3000/account/plan" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: demo-owner-api-key" \
+  -d '{
+    "plan": "growth"
+  }'
+```
+
+Pricing:
+
+```bash
+curl "http://localhost:3000/billing/pricing"
+```
+
+Create checkout preview:
+
+```bash
+curl -X POST "http://localhost:3000/billing/checkout" \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: demo-owner-api-key" \
+  -d '{
+    "plan": "growth",
+    "provider": "manual",
+    "successUrl": "http://localhost:5173/billing/success",
+    "cancelUrl": "http://localhost:5173/billing/cancel"
+  }'
+```
+
+Simulate successful billing webhook:
+
+```bash
+curl -X POST "http://localhost:3000/webhooks/billing" \
+  -H "Content-Type: application/json" \
+  -H "x-billing-webhook-secret: replace-with-a-random-billing-webhook-secret" \
+  -d '{
+    "provider": "manual",
+    "type": "subscription.updated",
+    "providerEventId": "evt_demo_growth_001",
+    "accountId": "10000000-0000-0000-0000-000000000001",
+    "plan": "growth",
+    "status": "active",
+    "providerCustomerId": "cust_demo_owner",
+    "providerSubscriptionId": "sub_demo_growth",
+    "amount": 99,
+    "currency": "USD",
+    "currentPeriodStart": "2026-03-01T00:00:00.000Z",
+    "currentPeriodEnd": "2026-04-01T00:00:00.000Z"
+  }'
 ```
 
 Message event:
@@ -138,6 +221,7 @@ Message event:
 ```bash
 curl -X POST "http://localhost:3000/events/message" \
   -H "Content-Type: application/json" \
+  -H "x-api-key: demo-owner-api-key" \
   -d '{
     "botType": "username",
     "botValue": "sample_analytics_bot",
@@ -157,6 +241,8 @@ curl -X POST "http://localhost:3000/events/message" \
 
 - `DATABASE_URL`
 - `TOKEN_HASH_SECRET`
+- `API_KEY_HASH_SECRET`
+- `BILLING_WEBHOOK_SECRET`
 - `CORS_ORIGIN`
 - `AWS_REGION`
 - `NODE_ENV=production`
@@ -189,5 +275,7 @@ Recommended production setup:
 
 - `botType=username`
 - `botValue=sample_analytics_bot`
+- owner email: `demo@example.com`
+- owner api key: `demo-owner-api-key`
 
 Use that identity to test the dashboard endpoints immediately after seeding.

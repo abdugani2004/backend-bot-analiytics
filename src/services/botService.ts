@@ -39,11 +39,12 @@ export class BotService {
     };
   }
 
-  async resolveBot(input: BotIdentityInput): Promise<BotRecord> {
+  async resolveBot(input: BotIdentityInput, ownerAccountId: string): Promise<BotRecord> {
     const botIdentifier = this.getBotIdentifier(input);
 
     return withTransaction(async (client) => {
       const existing = await this.botRepository.findByIdentifier(
+        ownerAccountId,
         input.botType,
         botIdentifier,
         client,
@@ -55,6 +56,7 @@ export class BotService {
       }
 
       return this.botRepository.create(
+        ownerAccountId,
         input.botType,
         botIdentifier,
         buildDisplayName(input),
@@ -63,8 +65,9 @@ export class BotService {
     });
   }
 
-  async findExistingBot(input: BotIdentityInput): Promise<BotRecord> {
+  async findExistingBot(input: BotIdentityInput, ownerAccountId: string): Promise<BotRecord> {
     const bot = await this.botRepository.findByIdentifier(
+      ownerAccountId,
       input.botType,
       this.getBotIdentifier(input),
     );
@@ -78,19 +81,25 @@ export class BotService {
     return bot;
   }
 
-  async connectBot(input: BotIdentityInput): Promise<BotOnboardingResponse> {
-    const bot = await this.resolveBot(input);
+  async connectBot(
+    input: BotIdentityInput,
+    ownerAccountId: string,
+  ): Promise<BotOnboardingResponse> {
+    const bot = await this.resolveBot(input, ownerAccountId);
     return this.toOnboardingResponse(bot, "connected");
   }
 
-  async verifyBot(input: BotIdentityInput): Promise<BotOnboardingResponse> {
+  async verifyBot(
+    input: BotIdentityInput,
+    ownerAccountId: string,
+  ): Promise<BotOnboardingResponse> {
     if (input.botType === "token" && !isLikelyTelegramToken(input.botValue)) {
       throw new AppError("Invalid bot token", 400, "INVALID_TOKEN", {
         botType: input.botType,
       });
     }
 
-    const bot = await this.findExistingBot(input);
+    const bot = await this.findExistingBot(input, ownerAccountId);
 
     if (input.botType === "token") {
       const telegramBot = await this.telegramService.getMe(input.botValue);
@@ -118,8 +127,11 @@ export class BotService {
     return this.toOnboardingResponse(verifiedBot, "verified");
   }
 
-  async enableTracking(input: BotIdentityInput): Promise<BotOnboardingResponse> {
-    const bot = await this.findExistingBot(input);
+  async enableTracking(
+    input: BotIdentityInput,
+    ownerAccountId: string,
+  ): Promise<BotOnboardingResponse> {
+    const bot = await this.findExistingBot(input, ownerAccountId);
 
     if (bot.verificationStatus !== "verified") {
       throw new AppError("Verification failed", 400, "VERIFICATION_FAILED", {
@@ -146,6 +158,18 @@ export class BotService {
 
   async findBotById(botId: string): Promise<BotRecord> {
     const bot = await this.botRepository.findById(botId);
+
+    if (!bot) {
+      throw new AppError("Bot not found", 404, "BOT_NOT_FOUND", {
+        botId,
+      });
+    }
+
+    return bot;
+  }
+
+  async findExistingBotForOwner(botId: string, ownerAccountId: string): Promise<BotRecord> {
+    const bot = await this.botRepository.findByIdAndOwner(botId, ownerAccountId);
 
     if (!bot) {
       throw new AppError("Bot not found", 404, "BOT_NOT_FOUND", {

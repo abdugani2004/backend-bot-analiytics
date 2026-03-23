@@ -16,22 +16,22 @@ export class EventService {
     private readonly eventRepository = new EventRepository(),
   ) {}
 
-  async ingestMessage(input: MessageEventInput): Promise<void> {
-    const bot = await this.botService.resolveBot(input);
+  async ingestMessage(input: MessageEventInput, ownerAccountId: string): Promise<void> {
+    const bot = await this.botService.resolveBot(input, ownerAccountId);
     const createdAt = parseEventDate(input.createdAt);
 
     await this.writeMessage(bot.id, input.user, input.text ?? null, createdAt);
   }
 
-  async ingestUserJoined(input: UserJoinedEventInput): Promise<void> {
-    const bot = await this.botService.resolveBot(input);
+  async ingestUserJoined(input: UserJoinedEventInput, ownerAccountId: string): Promise<void> {
+    const bot = await this.botService.resolveBot(input, ownerAccountId);
     const createdAt = parseEventDate(input.createdAt);
 
     await this.writeUserJoined(bot.id, input.user, createdAt);
   }
 
-  async ingestPayment(input: PaymentEventInput): Promise<void> {
-    const bot = await this.botService.resolveBot(input);
+  async ingestPayment(input: PaymentEventInput, ownerAccountId: string): Promise<void> {
+    const bot = await this.botService.resolveBot(input, ownerAccountId);
     const createdAt = parseEventDate(input.createdAt);
 
     await this.writePayment(bot.id, input.user, input.amount, input.currency, createdAt);

@@ -1,5 +1,11 @@
 import type { APIGatewayProxyEventV2 } from "aws-lambda";
-import type { BotIdentityInput } from "../types/api";
+import type {
+  AccountPlanUpdateInput,
+  AuthRegisterInput,
+  BillingCheckoutInput,
+  BillingWebhookInput,
+  BotIdentityInput,
+} from "../types/api";
 import type {
   MessageEventInput,
   PaymentEventInput,
@@ -8,6 +14,15 @@ import type {
 import { AppError } from "./errors";
 
 const BOT_TYPES = new Set(["token", "username"]);
+const BILLING_PROVIDERS = new Set(["manual", "stripe", "click"]);
+const SUBSCRIPTION_STATUSES = new Set([
+  "inactive",
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "incomplete",
+]);
 
 const requireString = (
   value: unknown,
@@ -85,6 +100,134 @@ const parseJsonBody = (event: APIGatewayProxyEventV2): Record<string, unknown> =
 export const validateBotIdentityFromBody = (
   event: APIGatewayProxyEventV2,
 ): BotIdentityInput => validateBotIdentity(parseJsonBody(event));
+
+export const validateAuthRegisterInput = (
+  event: APIGatewayProxyEventV2,
+): AuthRegisterInput => {
+  const body = parseJsonBody(event);
+
+  return {
+    email: requireString(body.email, "email", { maxLength: 255 }).toLowerCase(),
+    name:
+      body.name === undefined || body.name === null
+        ? null
+        : requireString(body.name, "name", { maxLength: 255 }),
+  };
+};
+
+export const requireApiKey = (event: APIGatewayProxyEventV2): string => {
+  const apiKey =
+    event.headers["x-api-key"] ??
+    event.headers["X-API-Key"] ??
+    event.headers.authorization?.replace(/^Bearer\s+/i, "").trim();
+
+  return requireString(apiKey, "x-api-key", { maxLength: 512 });
+};
+
+export const validatePlanUpdateInput = (
+  event: APIGatewayProxyEventV2,
+): AccountPlanUpdateInput => {
+  const body = parseJsonBody(event);
+  const plan = requireString(body.plan, "plan", { maxLength: 20 }).toLowerCase();
+
+  if (plan !== "starter" && plan !== "growth") {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      plan: 'must be "starter" or "growth"',
+    });
+  }
+
+  return {
+    plan,
+  };
+};
+
+export const validateBillingCheckoutInput = (
+  event: APIGatewayProxyEventV2,
+): BillingCheckoutInput => {
+  const body = parseJsonBody(event);
+  const plan = requireString(body.plan, "plan", { maxLength: 20 }).toLowerCase();
+  const provider = requireString(body.provider, "provider", { maxLength: 20 }).toLowerCase();
+
+  if (plan !== "starter" && plan !== "growth") {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      plan: 'must be "starter" or "growth"',
+    });
+  }
+
+  if (!BILLING_PROVIDERS.has(provider)) {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      provider: 'must be "manual", "stripe", or "click"',
+    });
+  }
+
+  return {
+    plan,
+    provider: provider as BillingCheckoutInput["provider"],
+    successUrl: requireString(body.successUrl, "successUrl", { maxLength: 2048 }),
+    cancelUrl: requireString(body.cancelUrl, "cancelUrl", { maxLength: 2048 }),
+  };
+};
+
+export const validateBillingWebhookInput = (
+  event: APIGatewayProxyEventV2,
+): BillingWebhookInput => {
+  const body = parseJsonBody(event);
+  const provider = requireString(body.provider, "provider", { maxLength: 20 }).toLowerCase();
+  const type = requireString(body.type, "type", { maxLength: 64 });
+  const plan = requireString(body.plan, "plan", { maxLength: 20 }).toLowerCase();
+  const status = requireString(body.status, "status", { maxLength: 20 }).toLowerCase();
+
+  if (!BILLING_PROVIDERS.has(provider)) {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      provider: 'must be "manual", "stripe", or "click"',
+    });
+  }
+
+  if (plan !== "starter" && plan !== "growth") {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      plan: 'must be "starter" or "growth"',
+    });
+  }
+
+  if (!SUBSCRIPTION_STATUSES.has(status)) {
+    throw new AppError("Validation failed", 400, "VALIDATION_ERROR", {
+      status: "must be a valid subscription status",
+    });
+  }
+
+  return {
+    provider: provider as BillingWebhookInput["provider"],
+    type: type as BillingWebhookInput["type"],
+    providerEventId: requireString(body.providerEventId, "providerEventId", { maxLength: 255 }),
+    accountId: requireString(body.accountId, "accountId", { maxLength: 64 }),
+    plan,
+    status: status as BillingWebhookInput["status"],
+    providerCustomerId:
+      body.providerCustomerId === undefined || body.providerCustomerId === null
+        ? null
+        : requireString(body.providerCustomerId, "providerCustomerId", { maxLength: 255 }),
+    providerSubscriptionId:
+      body.providerSubscriptionId === undefined || body.providerSubscriptionId === null
+        ? null
+        : requireString(body.providerSubscriptionId, "providerSubscriptionId", { maxLength: 255 }),
+    amount:
+      body.amount === undefined || body.amount === null
+        ? undefined
+        : requireNumber(body.amount, "amount"),
+    currency:
+      body.currency === undefined || body.currency === null
+        ? null
+        : requireString(body.currency, "currency", { maxLength: 8 }).toUpperCase(),
+    currentPeriodStart:
+      body.currentPeriodStart === undefined || body.currentPeriodStart === null
+        ? null
+        : requireString(body.currentPeriodStart, "currentPeriodStart", { maxLength: 64 }),
+    currentPeriodEnd:
+      body.currentPeriodEnd === undefined || body.currentPeriodEnd === null
+        ? null
+        : requireString(body.currentPeriodEnd, "currentPeriodEnd", { maxLength: 64 }),
+  };
+};
 
 const validateUser = (input: unknown): MessageEventInput["user"] => {
   if (!input || typeof input !== "object") {

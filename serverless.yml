@@ -15,6 +15,8 @@ provider:
     LOG_LEVEL: ${env:LOG_LEVEL, 'info'}
     DATABASE_URL: ${env:DATABASE_URL}
     TOKEN_HASH_SECRET: ${env:TOKEN_HASH_SECRET}
+    API_KEY_HASH_SECRET: ${env:API_KEY_HASH_SECRET}
+    BILLING_WEBHOOK_SECRET: ${env:BILLING_WEBHOOK_SECRET, ''}
     CORS_ORIGIN: ${env:CORS_ORIGIN, '*'}
     DEFAULT_TIMEZONE: ${env:DEFAULT_TIMEZONE, 'UTC'}
     HEALTH_DEGRADED_UPTIME_PCT: ${env:HEALTH_DEGRADED_UPTIME_PCT, '99'}
@@ -27,6 +29,8 @@ provider:
         - Content-Type
         - Authorization
         - X-Request-Id
+        - X-API-Key
+        - X-Billing-Webhook-Secret
       allowedMethods:
         - GET
         - POST
@@ -52,6 +56,54 @@ functions:
       - httpApi:
           path: /health
           method: GET
+  authRegister:
+    handler: dist/src/functions/authRegister.handler
+    events:
+      - httpApi:
+          path: /auth/register
+          method: POST
+  billingPricing:
+    handler: dist/src/functions/billingPricing.handler
+    events:
+      - httpApi:
+          path: /billing/pricing
+          method: GET
+  billingCheckout:
+    handler: dist/src/functions/billingCheckout.handler
+    events:
+      - httpApi:
+          path: /billing/checkout
+          method: POST
+  billingSubscription:
+    handler: dist/src/functions/billingSubscription.handler
+    events:
+      - httpApi:
+          path: /billing/subscription
+          method: GET
+  billingWebhook:
+    handler: dist/src/functions/billingWebhook.handler
+    events:
+      - httpApi:
+          path: /webhooks/billing
+          method: POST
+  accountMe:
+    handler: dist/src/functions/accountMe.handler
+    events:
+      - httpApi:
+          path: /account/me
+          method: GET
+  accountBots:
+    handler: dist/src/functions/accountBots.handler
+    events:
+      - httpApi:
+          path: /account/bots
+          method: GET
+  accountPlan:
+    handler: dist/src/functions/accountPlan.handler
+    events:
+      - httpApi:
+          path: /account/plan
+          method: POST
   botConnect:
     handler: dist/src/functions/botConnect.handler
     events:

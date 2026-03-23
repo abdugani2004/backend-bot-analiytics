@@ -1,7 +1,62 @@
-TRUNCATE TABLE activity_logs, bot_health_logs, payments, messages, users, bots RESTART IDENTITY CASCADE;
+TRUNCATE TABLE billing_events, subscriptions, activity_logs, bot_health_logs, payments, messages, users, bots, accounts RESTART IDENTITY CASCADE;
+
+INSERT INTO accounts (
+  id,
+  email,
+  name,
+  api_key_hash,
+  billing_provider_customer_id,
+  plan,
+  created_at,
+  updated_at
+)
+VALUES (
+  '10000000-0000-0000-0000-000000000001',
+  'demo@example.com',
+  'Demo Owner',
+  encode(hmac('demo-owner-api-key', 'dev-api-key-secret', 'sha256'), 'hex'),
+  'cust_demo_owner',
+  'starter',
+  NOW() - INTERVAL '60 days',
+  NOW()
+);
+
+INSERT INTO subscriptions (
+  id,
+  account_id,
+  provider,
+  provider_customer_id,
+  provider_subscription_id,
+  plan,
+  status,
+  amount_monthly,
+  currency,
+  current_period_start,
+  current_period_end,
+  cancel_at_period_end,
+  created_at,
+  updated_at
+)
+VALUES (
+  '20000000-0000-0000-0000-000000000001',
+  '10000000-0000-0000-0000-000000000001',
+  'manual',
+  'cust_demo_owner',
+  'sub_demo_growth',
+  'starter',
+  'active',
+  29.00,
+  'USD',
+  NOW() - INTERVAL '10 days',
+  NOW() + INTERVAL '20 days',
+  FALSE,
+  NOW() - INTERVAL '10 days',
+  NOW()
+);
 
 INSERT INTO bots (
   id,
+  owner_account_id,
   bot_identifier,
   bot_type,
   display_name,
@@ -17,8 +72,8 @@ INSERT INTO bots (
   updated_at
 )
 VALUES
-  ('00000000-0000-0000-0000-000000000001', 'sample_analytics_bot', 'username', '@sample_analytics_bot', NULL, NULL, 'verified', 'enabled', 'enabled', NOW() - INTERVAL '60 days', NOW() - INTERVAL '59 days', NOW() - INTERVAL '58 days', NOW() - INTERVAL '60 days', NOW()),
-  ('00000000-0000-0000-0000-000000000002', 'sample-token-hash', 'token', 'Telegram Bot', NULL, NULL, 'pending', 'disabled', 'pending', NOW() - INTERVAL '45 days', NULL, NULL, NOW() - INTERVAL '45 days', NOW());
+  ('00000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'sample_analytics_bot', 'username', '@sample_analytics_bot', NULL, NULL, 'verified', 'enabled', 'enabled', NOW() - INTERVAL '60 days', NOW() - INTERVAL '59 days', NOW() - INTERVAL '58 days', NOW() - INTERVAL '60 days', NOW()),
+  ('00000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'sample-token-hash', 'token', 'Telegram Bot', NULL, NULL, 'pending', 'disabled', 'pending', NOW() - INTERVAL '45 days', NULL, NULL, NOW() - INTERVAL '45 days', NOW());
 
 INSERT INTO users (id, bot_id, telegram_id, username, first_name, last_name, created_at, last_active_at)
 SELECT

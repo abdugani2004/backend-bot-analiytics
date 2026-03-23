@@ -4,7 +4,8 @@ import type { ApiErrorResponse, ApiSuccessResponse } from "../types/api";
 const baseHeaders = {
   "Content-Type": "application/json",
   "Access-Control-Allow-Origin": process.env.CORS_ORIGIN ?? "*",
-  "Access-Control-Allow-Headers": "Content-Type,Authorization,X-Request-Id",
+  "Access-Control-Allow-Headers":
+    "Content-Type,Authorization,X-Request-Id,X-API-Key,x-api-key,X-Billing-Webhook-Secret,x-billing-webhook-secret",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
 };
 

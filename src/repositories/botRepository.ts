@@ -4,6 +4,7 @@ import { query } from "../utils/db";
 
 interface BotRow extends QueryResultRow {
   id: string;
+  owner_account_id: string | null;
   bot_identifier: string;
   bot_type: BotType;
   display_name: string | null;
@@ -21,6 +22,7 @@ interface BotRow extends QueryResultRow {
 
 const mapBotRow = (row: BotRow): BotRecord => ({
   id: row.id,
+  ownerAccountId: row.owner_account_id,
   botIdentifier: row.bot_identifier,
   botType: row.bot_type,
   displayName: row.display_name,
@@ -45,6 +47,7 @@ type QueryExecutor = {
 
 export class BotRepository {
   async findByIdentifier(
+    ownerAccountId: string,
     botType: BotType,
     botIdentifier: string,
     client?: PoolClient,
@@ -53,6 +56,7 @@ export class BotRepository {
     const result = await executor.query<BotRow>(
       `SELECT
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -67,15 +71,16 @@ export class BotRepository {
          created_at,
          updated_at
        FROM bots
-       WHERE bot_type = $1 AND bot_identifier = $2
+       WHERE owner_account_id = $1 AND bot_type = $2 AND bot_identifier = $3
        LIMIT 1`,
-      [botType, botIdentifier],
+      [ownerAccountId, botType, botIdentifier],
     );
 
     return result.rows[0] ? mapBotRow(result.rows[0]) : null;
   }
 
   async create(
+    ownerAccountId: string,
     botType: BotType,
     botIdentifier: string,
     displayName: string | null,
@@ -83,10 +88,11 @@ export class BotRepository {
   ): Promise<BotRecord> {
     const executor: QueryExecutor = client ?? { query };
     const result = await executor.query<BotRow>(
-      `INSERT INTO bots (bot_identifier, bot_type, display_name)
-       VALUES ($1, $2, $3)
+      `INSERT INTO bots (owner_account_id, bot_identifier, bot_type, display_name)
+       VALUES ($1, $2, $3, $4)
        RETURNING
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -100,7 +106,7 @@ export class BotRepository {
          tracking_enabled_at,
          created_at,
          updated_at`,
-      [botIdentifier, botType, displayName],
+      [ownerAccountId, botIdentifier, botType, displayName],
     );
 
     return mapBotRow(result.rows[0]);
@@ -126,6 +132,7 @@ export class BotRepository {
        WHERE id = $1
        RETURNING
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -162,6 +169,7 @@ export class BotRepository {
        WHERE id = $1
        RETURNING
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -186,6 +194,7 @@ export class BotRepository {
     const result = await executor.query<BotRow>(
       `SELECT
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -231,6 +240,7 @@ export class BotRepository {
        WHERE id = $1
        RETURNING
          id,
+         owner_account_id,
          bot_identifier,
          bot_type,
          display_name,
@@ -254,5 +264,37 @@ export class BotRepository {
     );
 
     return mapBotRow(result.rows[0]);
+  }
+
+  async findByIdAndOwner(
+    botId: string,
+    ownerAccountId: string,
+    client?: PoolClient,
+  ): Promise<BotRecord | null> {
+    const executor: QueryExecutor = client ?? { query };
+    const result = await executor.query<BotRow>(
+      `SELECT
+         id,
+         owner_account_id,
+         bot_identifier,
+         bot_type,
+         display_name,
+         telegram_bot_id,
+         encrypted_token,
+         verification_status,
+         tracking_status,
+         webhook_status,
+         connected_at,
+         verified_at,
+         tracking_enabled_at,
+         created_at,
+         updated_at
+       FROM bots
+       WHERE id = $1 AND owner_account_id = $2
+       LIMIT 1`,
+      [botId, ownerAccountId],
+    );
+
+    return result.rows[0] ? mapBotRow(result.rows[0]) : null;
   }
 }
